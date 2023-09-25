@@ -19,6 +19,7 @@ class MineBoard:
 
   def reset(self):
     self.game_state = GameState.ACTIVE
+    self.flagged = 0
     self.__zero()
     self.__seed()
     self.__number_board()
@@ -42,7 +43,7 @@ class MineBoard:
 
   def __game_over(self):
     self.game_state = GameState.BOOM
-    self.board_mask = [[MaskState.CLEAR for y in range(self.y)] for x in range(self.x)]
+    self.board_mask = [[MaskState.CLEAR if self.board_mask[x][y] != MaskState.FLAG else MaskState.FLAG for y in range(self.y)] for x in range(self.x)]
 
   def __zero(self):
     self.board = [[0 for y in range(self.y)] for x in range(self.x)]
@@ -110,15 +111,24 @@ class MineBoard:
       return True
 
   def solve(self):
-    for x in self.board_mask:
-      for y in x:
-        if y == MaskState.FOG:
-          y = MaskState.CLEAR
+    for j in range(len(self.board_mask)):
+      x = self.board_mask[j]
+      for i in range(len(x)):
+        if x[i] == MaskState.FOG:
+          x[i] = MaskState.CLEAR
+          if self.board[j][i] == 'X':
+            self.game_state = GameState.BOOM
+    self.__win_check()
 
-  def status(self):
-    return self.game_state.name
+  def status_string(self):
+    state = self.game_state.name
+    if self.game_state == GameState.ACTIVE:
+      state += " {}/{}".format(self.flagged, self.num_mines)
+    return state
 
   def check(self, x, y):
+    if self.board_mask[x][y] == MaskState.FLAG:
+      return
     if self.board[x][y] == 'X':
       self.__game_over()
     elif self.board[x][y] == 0:
@@ -143,7 +153,7 @@ class MineBoard:
       for x in range(self.x):
         value = self.board[x][y]
         if self.board_mask[x][y] == MaskState.FOG:
-          value = "#"
+          value = "?"
         elif self.board_mask[x][y] == MaskState.FLAG:
           value = "!"
         yield value
@@ -180,10 +190,13 @@ def interactive_tile_loop(options):
   's': 'Reveal all unflagged',
   'space': 'Check tile',
   'return': 'Check tile',
-  'z': 'Resize'
+  'z': 'Resize custom',
+  'b': 'Begginer mode',
+  'm': 'Medium mode',
+  'e': 'Expert mode'
   }
   while True:
-    output = tile_set.loop(board.iterate_tile_states, board.status, cmd_options)
+    output = tile_set.loop(board.iterate_tile_states, board.status_string, cmd_options)
     if output == None or output['cmd'] == 'esc' or output['cmd'] == 'q':
       return
     elif output['cmd'] == 'r':
@@ -205,12 +218,21 @@ def interactive_tile_loop(options):
       board.mark(output['x'], output['y'])
     elif output['cmd'] == 's':
       board.solve()
+    elif output['cmd'] == 'b':
+      board = MineBoard(9, 9, 10)
+      tile_set = InteractiveTileSet(9, 9)
+    elif output['cmd'] == 'm':
+      board = MineBoard(16, 16, 40)
+      tile_set = InteractiveTileSet(16, 16)
+    elif output['cmd'] == 'e':
+      board = MineBoard(30, 16, 99)
+      tile_set = InteractiveTileSet(30, 16)
 
 
 
 if __name__ == '__main__':
   import sys
-  options = {"x": 10, "y": 10, 'bombs': 5, "display": None}
+  options = {"x": 9, "y": 9, 'bombs': 10, "display": None}
   for arg in sys.argv[1:]:
     if arg[0:2] == "-x":
       options['x'] = int(arg[3:])
