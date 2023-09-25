@@ -1,249 +1,124 @@
-import random
-from enum import Enum
-import os
 
-MaskState = Enum('MaskState', ['CLEAR', 'FLAG', 'FOG'])
-GameState = Enum('GameState', ['ACTIVE', 'WIN', 'BOOM'])
-class MineBoard:
-  def __init__(self, x = 4, y = 4, mines=3):
+class MatrixBoard:
+  def __init__(self, x, y, initial_val):
     self.x = x
     self.y = y
-    self.num_mines = mines
-    self.flagged = 0
     self.board = None
-    self.board_mask = None
-    self.game_state = GameState.ACTIVE
-    self.game_over = False
-    self.win_state = False
-    self.reset()
+    self.set_all(initial_val)
 
-  def reset(self):
-    self.game_state = GameState.ACTIVE
-    self.flagged = 0
-    self.__zero()
-    self.__seed()
-    self.__number_board()
+  def set_all(self, val):
+    self.board = [[val for y in range(self.x)] for x in range(self.y)]
 
-  def display(self):
-    print("")
-    if self.game_state == GameState.BOOM:
-      print(' BOOM!')
-    elif self.game_state == GameState.WIN:
-      print(' CLEAR!')
+  def set(self, x, y, val):
+    if self.x > x and self.y > y:
+      self.board[x][y] = val
+
+  def get(self, x, y):
+    if self.x > x and self.y > y:
+      return self.board[x][y]
+
+  def iter(self):
     for y in range(self.y):
       for x in range(self.x):
-        if self.board_mask[x][y] == MaskState.FOG:
-          print("#", end=" ")
-        elif self.board_mask[x][y] == MaskState.FLAG:
-          print("!", end=" ")
-        else:
-          print(self.board[x][y], end=" ")
-      print('\n')
-    print('')
-
-  def __game_over(self):
-    self.game_state = GameState.BOOM
-    self.board_mask = [[MaskState.CLEAR if self.board_mask[x][y] != MaskState.FLAG else MaskState.FLAG for y in range(self.y)] for x in range(self.x)]
-
-  def __zero(self):
-    self.board = [[0 for y in range(self.y)] for x in range(self.x)]
-    self.board_mask = [[MaskState.FOG for y in range(self.y)] for x in range(self.x)]
-
-  def __seed(self):
-    for x in range(self.num_mines):
-      loc = (random.randrange(self.x), random.randrange(self.y))
-      while self.board[loc[0]][loc[1]] != 0:
-        loc = (random.randrange(self.x), random.randrange(self.y))
-      self.board[loc[0]][loc[1]] = 'X'
-
-  def __number_board(self):
+        yield self.board[x][y]
+        
+  def index_iter(self):
     for y in range(self.y):
       for x in range(self.x):
-        if self.board[x][y] != 'X':
-          self.board[x][y] = self.__count_neighbors(x,y)
+        yield (x,y)
 
-  def __count_neighbors(self, x, y):
-    bomb_count = 0
-    if x > 0 and self.board[x-1][y] == 'X': # west
-      bomb_count += 1
-    if x < self.x -1 and self.board[x+1][y] == 'X': # east
-      bomb_count += 1
-    if y > 0 and self.board[x][y-1] == 'X': # north
-      bomb_count += 1
-    if y < self.y -1 and self.board[x][y+1] == 'X': # south
-      bomb_count += 1
-    if x > 0 and y > 0 and self.board[x-1][y-1] == 'X': # north west
-      bomb_count += 1
-    if x < self.x -1 and y > 0 and self.board[x+1][y-1] == 'X': # north east
-      bomb_count += 1
-    if x > 0 and y < self.y -1 and self.board[x-1][y+1] == 'X': # south west
-      bomb_count += 1
-    if x < self.x -1 and y < self.y -1 and self.board[x+1][y+1] == 'X': # south east
-      bomb_count += 1
-    return bomb_count
-
-  def __colapse_adjacent_mask(self, x, y):
-    self.board_mask[x][y] = MaskState.CLEAR
-    if self.board[x][y] != 0:
-      return
-    if x > 0 and self.board_mask[x-1][y] == MaskState.FOG: # west
-      self.__colapse_adjacent_mask(x-1,y)
-    if x < self.x -1 and self.board_mask[x+1][y] == MaskState.FOG: # east
-      self.__colapse_adjacent_mask(x+1,y)
-    if y > 0 and self.board_mask[x][y-1] == MaskState.FOG: # west
-      self.__colapse_adjacent_mask(x,y-1)
-    if y < self.y -1 and self.board_mask[x][y+1] == MaskState.FOG: # south
-      self.__colapse_adjacent_mask(x,y+1)
-    if x > 0 and y > 0 and self.board_mask[x-1][y-1] == MaskState.FOG: # north west
-      self.__colapse_adjacent_mask(x-1, y-1)
-    if x < self.x -1 and y > 0 and self.board_mask[x+1][y-1] == MaskState.FOG: # north east
-      self.__colapse_adjacent_mask(x+1, y-1)
-    if x > 0 and y < self.y -1 and self.board_mask[x-1][y+1] == MaskState.FOG: # south west
-      self.__colapse_adjacent_mask(x-1, y+1)
-    if x < self.x -1 and y < self.y -1 and self.board_mask[x+1][y+1] == MaskState.FOG: # south east
-      self.__colapse_adjacent_mask(x+1, y+1)
-
-  def __win_check(self):
-    if self.game_state == GameState.BOOM: 
-      return False
-    if sum([y.value for x in self.board_mask for y in x]) == self.x * self.y + self.num_mines:
-      self.game_state = GameState.WIN
-      return True
-
-  def solve(self):
-    for j in range(len(self.board_mask)):
-      x = self.board_mask[j]
-      for i in range(len(x)):
-        if x[i] == MaskState.FOG:
-          x[i] = MaskState.CLEAR
-          if self.board[j][i] == 'X':
-            self.game_state = GameState.BOOM
-    self.__win_check()
-
-  def status_string(self):
-    state = self.game_state.name
-    if self.game_state == GameState.ACTIVE:
-      state += " {}/{}".format(self.flagged, self.num_mines)
-    return state
-
-  def check(self, x, y):
-    if self.board_mask[x][y] == MaskState.FLAG:
-      return
-    if self.board[x][y] == 'X':
-      self.__game_over()
-    elif self.board[x][y] == 0:
-      self.__colapse_adjacent_mask(x,y)
-    else: 
-      self.board_mask[x][y] = MaskState.CLEAR
-    if self.flagged == self.num_mines:
-      self.__win_check()
-
-  def mark(self, x, y):
-    if self.board_mask[x][y] == MaskState.FLAG:
-      self.board_mask[x][y] = MaskState.FOG
-      self.flagged -= 1
-    elif self.board_mask[x][y] == MaskState.FOG:
-      self.board_mask[x][y] = MaskState.FLAG
-      self.flagged += 1
-    if self.flagged == self.num_mines:
-      self.__win_check()
-
-  def iterate_tile_states(self):
-    for y in range(self.y):
-      for x in range(self.x):
-        value = self.board[x][y]
-        if self.board_mask[x][y] == MaskState.FOG:
-          value = "?"
-        elif self.board_mask[x][y] == MaskState.FLAG:
-          value = "!"
-        yield value
-
-
-def simple_game_loop(options):
-  board = MineBoard(options['x'], options['y'], options['bombs'])
-  cmd = None
-  while True:
-    board.display()
-    print('Pick a coordinate')
-    cmd = input()
-    if cmd == 'q':
-      break
-    elif cmd == 'r':
-      board.reset()
-    elif cmd[0] == 'f':
-      coord = list(map(int, cmd[1:].split(',')))
-      board.mark(*coord)
+  def get_upper_left_coords(self, x, y):
+    if x > 0 and y > 0:
+      return (x-1, y-1)
     else:
-      coord = list(map(int, cmd.split(',')))
-      board.check(*coord)
+      return None
 
+  def get_upper_coords(self, x, y):
+    if y > 0:
+      return (x, y-1)
+    else:
+      return None
 
-def interactive_tile_loop(options):
-  from interactive_tile_set import InteractiveTileSet
-  board = MineBoard(options['x'], options['y'], options['bombs'])
-  tile_set = InteractiveTileSet(options['x'], options['y'])
-  cmd_options = {
-  'esc': 'Exit',
-  'q': 'Exit',
-  'r': 'Reset',
-  'f': 'Flag',
-  's': 'Reveal all unflagged',
-  'space': 'Check tile',
-  'return': 'Check tile',
-  'z': 'Resize custom',
-  'b': 'Begginer mode',
-  'm': 'Medium mode',
-  'e': 'Expert mode'
-  }
-  while True:
-    output = tile_set.loop(board.iterate_tile_states, board.status_string, cmd_options)
-    if output == None or output['cmd'] == 'esc' or output['cmd'] == 'q':
-      return
-    elif output['cmd'] == 'r':
-      board.reset()
-    elif output['cmd'] == 'z':
-      term_size = os.get_terminal_size()
-      os.system('clear')
-      print("Enter new x dimension less than {}".format(int(term_size.columns /2)))
-      x = int(input())
-      print("Enter new y dimension less than {}".format(int(term_size.lines / 2)))
-      y = int(input())
-      print("Enter new bomb count less than {}".format(int(x*y*.7)))
-      bomb_count = int(input())
-      board = MineBoard(x, y, bomb_count)
-      tile_set = InteractiveTileSet(x, y)
-    elif output['cmd'] == 'space' or output['cmd'] == 'return':
-      board.check(output['x'], output['y'])
-    elif output['cmd'] == 'f':
-      board.mark(output['x'], output['y'])
-    elif output['cmd'] == 's':
-      board.solve()
-    elif output['cmd'] == 'b':
-      board = MineBoard(9, 9, 10)
-      tile_set = InteractiveTileSet(9, 9)
-    elif output['cmd'] == 'm':
-      board = MineBoard(16, 16, 40)
-      tile_set = InteractiveTileSet(16, 16)
-    elif output['cmd'] == 'e':
-      board = MineBoard(30, 16, 99)
-      tile_set = InteractiveTileSet(30, 16)
+  def get_upper_right_coords(self, x, y):
+    if x < self.x -1 and y > 0:
+      return (x+1, y-1)
+    else:
+      return None
 
+  def get_right_coords(self, x, y):
+    if x > 0:
+      return (x-1, y)
+    else:
+      return None
 
+  def get_lower_right_coords(self, x, y):
+    if x < self.x -1 and y < self.y -1:
+      return (x+1, y+1)
+    else:
+      return None
 
-if __name__ == '__main__':
-  import sys
-  options = {"x": 9, "y": 9, 'bombs': 10, "display": None}
-  for arg in sys.argv[1:]:
-    if arg[0:2] == "-x":
-      options['x'] = int(arg[3:])
-    elif arg[0:2] == "-y":
-      options['y'] = int(arg[3:])
-    elif arg[0:2] == '-b':
-      options['bombs'] = int(arg[3:])
-    elif arg[0:2] == "-d":
-      options["display"] = arg[3:]
-  if options['display'] == 'scroll':
-    simple_game_loop(options)
-  else:
-    interactive_tile_loop(options)
+  def get_lower_coords(self, x, y):
+    if y < self.y -1:
+      return (x, y+1)
+    else:
+      return None
 
+  def get_lower_left_coords(self, x, y):
+    if x > 0 and y < self.y -1:
+      return (x-1, y+1)
+    else:
+      return None
+
+  def get_left_coords(self, x, y):
+    if x > 0:
+      return (x-1,y)
+    else:
+      return None
+
+  def get_upper_left(self, x, y):
+    if x > 0 and y > 0:
+      return self.board[x-1][y-1]
+    else:
+      return None
+
+  def get_upper(self, x, y):
+    if y > 0:
+      return self.board[x][y-1]
+    else:
+      return None
+
+  def get_upper_right(self, x, y):
+    if x < self.x -1 and y > 0:
+      return self.board[x+1][y-1]
+    else:
+      return None
+
+  def get_right(self, x, y):
+    if x > 0:
+      return self.board[x-1][y]
+    else:
+      return None
+
+  def get_lower_right(self, x, y):
+    if x < self.x -1 and y < self.y -1:
+      return self.board[x+1][y+1]
+    else:
+      return None
+
+  def get_lower(self, x, y):
+    if y < self.y -1:
+      return self.board[x][y+1]
+    else:
+      return None
+
+  def get_lower_left(self, x, y):
+    if x > 0 and y < self.y -1:
+      return self.board[x-1][y+1]
+    else:
+      return None
+
+  def get_left(self, x, y):
+    if x > 0:
+      return self.board[x-1][y]
+    else:
+      return None

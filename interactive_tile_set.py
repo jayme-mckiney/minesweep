@@ -17,7 +17,7 @@ class InteractiveTileSet:
       end = " "
       value = tile
       if self.y_cur == y and self.x_cur == x:
-        value = "\033[92m{}\033[00m".format(tile)
+        value = "\033[102;31m{}\033[00m".format(tile)
       x += 1
       if x == self.x_max:
         x = 0
