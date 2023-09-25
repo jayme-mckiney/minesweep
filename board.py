@@ -115,6 +115,9 @@ class MineBoard:
         if y == MaskState.FOG:
           y = MaskState.CLEAR
 
+  def status(self):
+    return self.game_state.name
+
   def check(self, x, y):
     if self.board[x][y] == 'X':
       self.__game_over()
@@ -169,8 +172,18 @@ def interactive_tile_loop(options):
   from interactive_tile_set import InteractiveTileSet
   board = MineBoard(options['x'], options['y'], options['bombs'])
   tile_set = InteractiveTileSet(options['x'], options['y'])
+  cmd_options = {
+  'esc': 'Exit',
+  'q': 'Exit',
+  'r': 'Reset',
+  'f': 'Flag',
+  's': 'Reveal all unflagged',
+  'space': 'Check tile',
+  'return': 'Check tile',
+  'z': 'Resize'
+  }
   while True:
-    output = tile_set.loop(board.iterate_tile_states, ['esc', 'q', 'r', 'f', 's', 'space', 'return', 'z'])
+    output = tile_set.loop(board.iterate_tile_states, board.status, cmd_options)
     if output == None or output['cmd'] == 'esc' or output['cmd'] == 'q':
       return
     elif output['cmd'] == 'r':

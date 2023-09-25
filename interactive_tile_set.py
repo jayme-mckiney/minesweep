@@ -8,10 +8,11 @@ class InteractiveTileSet:
     self.x_cur = 0
     self.y_cur = 0
 
-  def __display(self, board_iter):
+  def __display_board(self, board_iter):
     os.system('clear')
     x = 0
     y = 0
+    buffer = ""
     for tile in board_iter:
       end = " "
       value = tile
@@ -22,12 +23,21 @@ class InteractiveTileSet:
         x = 0
         y += 1
         end = "\n"
-      print(value, end=end)
+      buffer += "{}{}".format(value, end)
+    print(buffer)
 
-  def loop(self, board_iter_method, cmds):
+  def __display_status(self, status, cmd_options):
+    print(status)
+    print("")
+    for cmd in cmd_options:
+      print("{}: {}".format(cmd, cmd_options[cmd]))
+
+  def loop(self, board_iter_method, board_status_method, cmd_options):
+    cmds = list(cmd_options.keys())
     try:
         while True:
-            self.__display(board_iter_method())
+            self.__display_board(board_iter_method())
+            self.__display_status(board_status_method(), cmd_options)
             k = getkey()
             if len(list(filter(lambda x: x == k,cmds))):
               return {"cmd": k, "x": self.x_cur, "y": self.y_cur}
