@@ -46,8 +46,8 @@ class MatrixBoard:
       return None
 
   def get_right_coords(self, x, y):
-    if x > 0:
-      return (x-1, y)
+    if x < self.x -1:
+      return (x+1, y)
     else:
       return None
 
@@ -94,8 +94,8 @@ class MatrixBoard:
       return None
 
   def get_right(self, x, y):
-    if x > 0:
-      return self.board[x-1][y]
+    if x < self.x -1:
+      return self.board[x+1][y]
     else:
       return None
 
