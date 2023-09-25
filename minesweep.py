@@ -3,9 +3,10 @@ from enum import Enum
 import os
 from board import MatrixBoard
 
+
 MaskState = Enum('MaskState', ['CLEAR', 'FLAG', 'FOG'])
 GameState = Enum('GameState', ['ACTIVE', 'WIN', 'BOOM'])
-ColorCode = Enum('ColorCode', ['WHITE', 'GREEN', 'YELLOW', 'ORANGE'])
+
 class MineBoard:
   def __init__(self, x = 4, y = 4, mines=3):
     self.x = x
@@ -17,6 +18,9 @@ class MineBoard:
     self.game_state = GameState.ACTIVE
     self.game_over = False
     self.win_state = False
+    self.color_array = ["WHITE", "GREEN", "YELLOW", "ORANGE"]
+    self.fallback_color = "RED"
+    self.bg = "BLACK"
     self.reset()
 
   def reset(self):
@@ -49,6 +53,14 @@ class MineBoard:
         if self.board.get(x, y) != 'X':
           self.board.set(x, y, self.__count_neighbors(x,y))
 
+  def get_color(self, val):
+    if not isinstance(val, int):
+      return self.fallback_color
+    if val < len(self.color_array):
+      return self.color_array[val]
+    else:
+      return self.color_array[-1]
+
   def __count_neighbors(self, x, y):
     bomb_count = 0
     if self.board.get_upper_left(x,y) == 'X':
@@ -80,7 +92,7 @@ class MineBoard:
     if self.board_mask.get_upper_right(x,y) == MaskState.FOG:
       self.__colapse_adjacent_mask(*self.board_mask.get_upper_right_coords(x,y))
     if self.board_mask.get_right(x,y) == MaskState.FOG:
-      self.__colapse_adjacent_mask(*self.board_mask.get_upper_right_coords(x,y))
+      self.__colapse_adjacent_mask(*self.board_mask.get_right_coords(x,y))
     if self.board_mask.get_lower_right(x,y) == MaskState.FOG:
       self.__colapse_adjacent_mask(*self.board_mask.get_lower_right_coords(x,y))
     if self.board_mask.get_lower(x,y) == MaskState.FOG:
@@ -136,11 +148,17 @@ class MineBoard:
   def iterate_tile_states(self):
     for c in self.board.index_iter():
         value = self.board.get(*c)
+        fg_color = self.get_color(value)
+        bg_color = self.bg
         if self.board_mask.get(*c) == MaskState.FOG:
           value = "~"
+          bg_color = self.bg
+          fg_color = "WHITE"
         elif self.board_mask.get(*c) == MaskState.FLAG:
           value = "!"
-        yield value
+          fg_color = "RED"
+          bg_color = self.bg
+        yield {"value": value, "fg_color": fg_color, "bg_color": bg_color}
 
 def interactive_tile_loop(options):
   from interactive_tile_set import InteractiveTileSet

@@ -7,6 +7,23 @@ class InteractiveTileSet:
     self.y_max = y
     self.x_cur = 0
     self.y_cur = 0
+    self.fg_color_codes = {
+    "WHITE": "37",
+    "GREEN": "92",
+    "YELLOW": "93",
+    "ORANGE": "33",
+    "RED": "91",
+    "BLACK": "30"
+    }
+    self.bg_color_codes = {
+    "WHITE": "47",
+    "GREEN": "102",
+    "YELLOW": "103",
+    "ORANGE": "43",
+    "RED": "101",
+    "BLACK": "40"
+    }
+
 
   def __display_board(self, board_iter):
     os.system('clear')
@@ -15,9 +32,11 @@ class InteractiveTileSet:
     buffer = ""
     for tile in board_iter:
       end = " "
-      value = tile
+      fg = self.fg_color_codes[tile['fg_color']]
+      bg = self.bg_color_codes[tile['bg_color']]
+      value = "\033[{};{}m{}\033[00m".format(fg, bg, tile['value'])
       if self.y_cur == y and self.x_cur == x:
-        value = "\033[102;31m{}\033[00m".format(tile)
+        value = "\033[102;31m{}\033[00m".format(tile['value'])
       x += 1
       if x == self.x_max:
         x = 0
